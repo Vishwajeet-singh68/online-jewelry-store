@@ -1,0 +1,191 @@
+version: '3.8'
+
+services:
+  service-registry:
+    build: ./service-registry
+    container_name: service-registry
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jewelry-auth-db:
+    image: mysql:8.0
+    container_name: jewelry-auth-db
+    environment:
+      MYSQL_DATABASE: jewelrydb
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - auth_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_URL=jdbc:mysql://jewelry-auth-db:3306/jewelrydb?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - JWT_SECRET=8f8303f25608d408eb19d425f1901a52e26922573f08f863e414c6e949cb24e8
+      - EUREKA_ENABLED=true
+      - EUREKA_SERVER_URL=http://service-registry:8761/eureka
+    depends_on:
+      jewelry-auth-db:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+
+  jewelry-product-db:
+    image: mysql:8.0
+    container_name: jewelry-product-db
+    environment:
+      MYSQL_DATABASE: jewelry_product_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - product_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_URL=jdbc:mysql://jewelry-product-db:3306/jewelry_product_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - EUREKA_ENABLED=true
+      - EUREKA_SERVER_URL=http://service-registry:8761/eureka
+    depends_on:
+      jewelry-product-db:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+
+  jewelry-inventory-db:
+    image: mysql:8.0
+    container_name: jewelry-inventory-db
+    environment:
+      MYSQL_DATABASE: jewelry_inventory_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3308:3306"
+    volumes:
+      - inventory_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: inventory-service
+    ports:
+      - "8083:8083"
+    environment:
+      - DB_URL=jdbc:mysql://jewelry-inventory-db:3306/jewelry_inventory_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - EUREKA_ENABLED=true
+      - EUREKA_SERVER_URL=http://service-registry:8761/eureka
+    depends_on:
+      jewelry-inventory-db:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+
+  jewelry-cart-db:
+    image: mysql:8.0
+    container_name: jewelry-cart-db
+    environment:
+      MYSQL_DATABASE: jewelry_cart_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3309:3306"
+    volumes:
+      - cart_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cart-service:
+    build: ./cart-service
+    container_name: cart-service
+    ports:
+      - "8084:8084"
+    environment:
+      - DB_URL=jdbc:mysql://jewelry-cart-db:3306/jewelry_cart_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - EUREKA_ENABLED=true
+      - EUREKA_SERVER_URL=http://service-registry:8761/eureka
+      - PRODUCT_SERVICE_URL=http://product-service:8082
+      - INVENTORY_SERVICE_URL=http://inventory-service:8083
+    depends_on:
+      jewelry-cart-db:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+
+  jewelry-order-db:
+    image: mysql:8.0
+    container_name: jewelry-order-db
+    environment:
+      MYSQL_DATABASE: jewelry_order_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3310:3306"
+    volumes:
+      - order_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "8085:8085"
+    environment:
+      - DB_URL=jdbc:mysql://jewelry-order-db:3306/jewelry_order_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - EUREKA_ENABLED=true
+      - EUREKA_SERVER_URL=http://service-registry:8761/eureka
+      - CART_SERVICE_URL=http://cart-service:8084
+      - PRODUCT_SERVICE_URL=http://product-service:8082
+      - INVENTORY_SERVICE_URL=http://inventory-service:8083
+    depends_on:
+      jewelry-order-db:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+
+volumes:
+  auth_db_data:
+  product_db_data:
+  inventory_db_data:
+  cart_db_data:
+  order_db_data:

@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  jewelry-order-db:
+    image: mysql:8.0
+    container_name: jewelry-order-db
+    environment:
+      MYSQL_DATABASE: jewelry_order_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3310:3306"
+    volumes:
+      - order_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    build: .
+    container_name: order-service
+    ports:
+      - "8085:8085"
+    environment:
+      - DB_URL=jdbc:mysql://jewelry-order-db:3306/jewelry_order_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - EUREKA_ENABLED=false
+      - CART_SERVICE_URL=http://cart-service:8084
+      - PRODUCT_SERVICE_URL=http://product-service:8082
+      - INVENTORY_SERVICE_URL=http://inventory-service:8083
+    depends_on:
+      jewelry-order-db:
+        condition: service_healthy
+
+volumes:
+  order_db_data:

@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  product_mysql:
+    image: mysql:8.0
+    container_name: jewelry_product_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: jewelry_product_db
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  product-service:
+    build: .
+    container_name: jewelry_product_service
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_URL=jdbc:mysql://product_mysql:3306/jewelry_product_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - JWT_SECRET=8f8303f25608d408eb19d425f1901a52e26922573f08f863e414c6e949cb24e8
+    depends_on:
+      product_mysql:
+        condition: service_healthy

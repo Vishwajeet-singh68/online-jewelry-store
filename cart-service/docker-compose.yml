@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  jewelry-cart-db:
+    image: mysql:8.0
+    container_name: jewelry-cart-db
+    environment:
+      MYSQL_DATABASE: jewelry_cart_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3309:3306"
+    volumes:
+      - cart_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cart-service:
+    build: .
+    container_name: cart-service
+    ports:
+      - "8084:8084"
+    environment:
+      - DB_URL=jdbc:mysql://jewelry-cart-db:3306/jewelry_cart_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+      - JWT_SECRET=8f8303f25608d408eb19d425f1901a52e26922573f08f863e414c6e949cb24e8
+      - EUREKA_ENABLED=false
+      - PRODUCT_SERVICE_URL=http://product-service:8082
+      - INVENTORY_SERVICE_URL=http://inventory-service:8083
+    depends_on:
+      jewelry-cart-db:
+        condition: service_healthy
+
+volumes:
+  cart_db_data:
